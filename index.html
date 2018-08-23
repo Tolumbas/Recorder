@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Recorder</title>
+    <style>
+        div.track{
+            border: 1px solid #a0a0a0;
+            margin-top: 30px;
+            padding: 10px;
+        }
+        #recording{
+            color:red;
+        }
+        .hidden{
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    Tempo: <input type="text" id="tempo" value="100">
+    Metronome volume: <input type="text" value="0.3" id="metronomeGain">
+    Latency: <input type="text" value="0.1" id="latency">
+    <button id="play">Play</button>
+    <button id="stop">Stop</button>
+    <span class="hidden" id="recording">recording</span>
+    <div class="track">
+        Track1<br>
+        <button class="record" id="t0">Record</button>
+        <button class="export" id="t0">Export</button><br>
+        Volume <input class="vol" id="t0" type="text" value="0.9"><br>
+        Length <input class="length" id="t0" type="text" value="8">
+    </div>
+    <div class="track">
+        Track2<br>
+        <button class="record" id="t1">Record</button>
+        <button class="export" id="t1">Export</button><br>
+        Volume <input class="vol" id="t1" type="text" value="0.9"><br>
+        Length <input class="length" id="t1" type="text" value="8">
+    </div>
+
+    <!-- <a href="#" id="record" onclick="startRecording()" disabled>
+        Rec Track1
+    </a>
+    <a href="#" id="stop" onclick="setUpPreview()">Stop</a>
+    <audio id="preview" controls></audio> -->
+    <script src="recorder.js" type="module"></script>
+    <script src="metronome.js" type="module"></script>
+    <script defer src="js.js"></script>
+</body>
+</html>
