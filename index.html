@@ -1,18 +1,36 @@
 <html>
     <head>
         <title>Recorder</title>
+        <style>
+        #tracks{
+            padding:20px 0;
+        }
+        .number{
+            width:50px;
+        }
+        </style>
     </head>
     <body>
-        <audio hidden></audio>
-        <canvas id="waveform" width="1920" height="200"></canvas>
-        <button type="button" onclick="start()">Start metronome</button>
-        <button type="button" onclick="record()">Record</button>
-        <button type="button" onclick="toggleMetronome()">Toggle metronome</button>
-        <button type="button" onclick="stop()">Stop</button>
-        <button type="button" onclick="deleteBuffer()">Undo recording</button>
-        <a id="download">download</a>
-        <!-- <script src="mustache.min.js"></script> -->
+        <div id="master">
+            <label for="bpm">Bpm:</label><input class="number" id="bpm" type="number" value="120">
+            <label for="phrases">Phrases:</label><input class="number" id="phrases" type="number" value="4">
+            <label for="subbeats">Subbeats:</label><input class="number" id="subbeats" type="number" value="4">
+            <button type="button" onclick="start(event)">Start metronome</button>
+            <button type="button" onclick="stop(event)">Stop</button>
+            <input id="metronomeMuted" type="checkbox">mute metronome</button>
+            <input id="muteWhenRecording" type="checkbox">mute when recording</button>
+        </div>
+        <div id="tracks">
+            <template id="tracktemplate">
+                <canvas data-track="0" id="waveform" width="1920" height="200"></canvas>
+                <button data-track="0" type="button" onclick="record(event)">Record</button>
+                <button data-track="0" type="button" onclick="deleteBuffer(event)">Undo recording</button>
+                <a data-track="0" id="download">download</a>
+            </template>
+        </div>
+        <button type="button" onclick="addTrack()">Add Track</button>
         <script src="exporter.js"></script>
+        <script src="track.js"></script>
         <script src="recorder.js"></script>
     </body>
 </html>
