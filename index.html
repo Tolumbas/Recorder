@@ -1,6 +1,7 @@
 <html>
     <head>
         <title>Recorder</title>
+        <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
         <style>
         #tracks{
             padding:20px 0;
@@ -12,6 +13,7 @@
     </head>
     <body>
         <div id="master">
+            <input type="text" placeholder="song name" id="songname">
             <label for="bpm">Bpm:</label><input class="number" id="bpm" type="number" value="120">
             <label for="phrases">Phrases:</label><input class="number" id="phrases" type="number" value="4">
             <label for="subbeats">Subbeats:</label><input class="number" id="subbeats" type="number" value="4">
@@ -19,17 +21,25 @@
             <button type="button" onclick="stop(event)">Stop</button>
             <input id="metronomeMuted" type="checkbox">mute metronome</button>
             <input id="muteWhenRecording" type="checkbox">mute when recording</button>
+            <button type="button" onclick="exportAll(event)">Export</button>
+            <a id="downloadall">download all</a>
         </div>
         <div id="tracks">
             <template id="tracktemplate">
-                <canvas data-track="0" id="waveform" width="1920" height="200"></canvas>
+                <canvas data-track="0" draggable="true" ondragstart="drag(event)" ondragover="dragOver(event)" ondrop="loadFile(event)" id="waveform" width="1920" height="200"></canvas>
                 <button data-track="0" type="button" onclick="record(event)">Record</button>
                 <button data-track="0" type="button" onclick="deleteBuffer(event)">Undo recording</button>
                 <a data-track="0" id="download">download</a>
+                <br>
+                <label for="volume">Volume:</label>
+                <input data-track="0" type="range" id="volume" min=0 max=3 step=0.01 value=1>
+                <label for="reverb">Reverb:</label>
+                <input data-track="0" type="range" id="reverb" min=0 max=1 step=0.01 value=0>
             </template>
         </div>
         <button type="button" onclick="addTrack()">Add Track</button>
         <script src="exporter.js"></script>
+        <script src="workingfunctions.js"></script>
         <script src="track.js"></script>
         <script src="recorder.js"></script>
     </body>
