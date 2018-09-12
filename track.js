@@ -19,20 +19,27 @@ constructor(index){
         switch(guts[a].id){
         case "waveform": 
             this.canvas = guts[a];
+            this.canvas.width = innerWidth;
+            this.canvas.height = 200;
             break;
         case "volume": 
-        guts[a].addEventListener("change",e=>{
-            this.gain.gain.value=e.target.value;
-        })    
-        break;
+            guts[a].addEventListener("change",e=>{
+                this.gain.gain.value=e.target.value;
+            })    
+            break;
         case "reverb": 
-        guts[a].addEventListener("change",e=>{
-            if(this.reverbgain){
-                this.reverbgain.gain.value = e.target.value;
-                this.reverbbypass.gain.value = 1-this.reverbgain.gain.value;
-            }
-        })    
-        break;
+            guts[a].addEventListener("change",e=>{
+                if(this.reverbgain){
+                    this.reverbgain.gain.value = e.target.value;
+                    this.reverbbypass.gain.value = 1-this.reverbgain.gain.value;
+                }
+            })    
+            break;
+        case "phrases":
+            guts[a].addEventListener("change",e=>{
+                this.phrases = e.target.value;
+            });
+            break;
         }
         
     }
@@ -41,8 +48,8 @@ constructor(index){
     this.g = this.canvas.getContext('2d');
 
     this.buffercanvas = document.createElement("canvas");
-    this.buffercanvas.width = 1920;
-    this.buffercanvas.height = 1080;
+    this.buffercanvas.width = this.canvas.width;
+    this.buffercanvas.height = this.canvas.height;
     this.bufferg = this.buffercanvas.getContext('2d');
 
     this.phrases = 4;
@@ -61,7 +68,13 @@ get buffer(){
 undoBuffer(){
     if(this.archive.length==0){
         this._buffer = undefined;
-        this.bufferg.clearRect(0,0,1920,1080);
+        this.bufferg.clearRect(
+            0,
+            0,
+            this.buffercanvas.width,
+            this.buffercanvas.height
+            );
+        this.stop();
     }
     else{
         this.buffer = this.archive.pop();
@@ -117,22 +130,24 @@ setUpDownloadLink(){
     downloadtag.download=file.name;
 }
 repaintBuffer(){
-    let _g,_buffer;
-    _g = this.bufferg;
-    _buffer = this.buffer;
 
-    _g.clearRect(0,0,1920,1080);
-    _g.beginPath();
-    _g.moveTo(0,100);
-    let array = _buffer.getChannelData(0);
-    let step = Math.ceil(array.length/1920);
+    let {width,height} = this.buffercanvas;
+
+    this.bufferg.clearRect(0,0,width,height);
+    this.bufferg.beginPath();
+    this.bufferg.moveTo(0,100);
+    let array = this.buffer.getChannelData(0);
+    let step = Math.floor(array.length/width);
     for (let a=0;a<array.length;a+=step){
-        let avarage=0;
+        let max=0;
         for (let b=a;b<a+step;b++)
-            avarage+=array[a]/step;
-        _g.lineTo(a/array.length*1920,100+avarage*100);
+            max=Math.max(max,Math.abs(array[b]));
+        if(a!=0)
+            this.bufferg.lineTo(a/array.length*width,height-max*height);
+        else
+            this.bufferg.moveTo(a/array.length*width,height-max*height);
     }
-    _g.stroke();
+    this.bufferg.stroke();
 }
 
 

@@ -16,6 +16,23 @@ async function mergeBuffers(buffer1,buffer2){
     return await offcontext.startRendering();
 }
 
+async function mergeAllTracks(){
+    let largest= tracks.reduce((acc,t)=>t.buffer?Math.max(acc,t.buffer.length):0,0);
+    if (largest == 0){
+        throw "Nothing to Export";
+    }
+    let offcontext = new OfflineAudioContext(
+        tracks[0].buffer.numberOfChannels,
+        largest,
+        tracks[0].buffer.sampleRate
+    );
+    tracks.map(t=>{
+        let node = t.connectWith(offcontext);
+        node.start();
+    })
+    return await offcontext.startRendering();
+}
+
 function bufferToLink(buffer,link){
     let arraybuffer = audioBufferToWav(buffer);
     let name = $("songname").value || new Date();
@@ -23,4 +40,41 @@ function bufferToLink(buffer,link){
     let url = URL.createObjectURL(file);
     link.href=url;
     link.download=file.name;
+}
+function cutBufferToSize(uncut,tracklength){
+    let newbuffer =audioContext.createBuffer(
+        uncut.numberOfChannels,
+        tracklength*uncut.numberOfChannels*uncut.sampleRate,
+        uncut.sampleRate
+    );
+    let tail = audioContext.createBuffer(
+        uncut.numberOfChannels,
+        uncut.length-newbuffer.length,
+        uncut.sampleRate
+    )
+    let data = new Float32Array(uncut.length);
+    for (let a =0;a<uncut.numberOfChannels;a++){
+        uncut.copyFromChannel(data,a);
+        newbuffer.copyToChannel(data,a);
+        tail.copyToChannel(data.subarray(newbuffer.length),a);
+    }
+    let c = new OfflineAudioContext(
+        newbuffer.numberOfChannels,
+        newbuffer.length,
+        newbuffer.sampleRate
+    );
+    let mainnode = c.createBufferSource();
+    mainnode.buffer=newbuffer;
+    let tailnode = c.createBufferSource();
+    tailnode.buffer=tail;
+    let fadeoutgain = c.createGain();
+    let maingain = c.createGain();
+    maingain.gain.value = 0.01;
+    mainnode.connect(maingain).connect(c.destination);
+    tailnode.connect(fadeoutgain).connect(c.destination);
+    fadeoutgain.gain.exponentialRampToValueAtTime(0.01,tail.duration);
+    maingain.gain.exponentialRampToValueAtTime(1,tail.duration);
+    mainnode.start();
+    tailnode.start();
+    return c.startRendering();
 }

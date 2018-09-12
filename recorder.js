@@ -7,17 +7,17 @@ let stream,mediaRecorder;
 
 let tracks = [];
 
-let prevtime;
+let prevtime=-100;
 let timebuffer;
 let timestart;
-let speed,subbeats,phrases;
+let subbeats,phraselength;
 let lastclick;
 let offset = 100;
 
 let metronomeVolume = 0.2;
 
 let muteWhenRecording = false;
-let recordingTrack;
+let recordingTrackIndex,recordingTrack,recordingTrackLength;
 let state=0;
 let currentNode;
 console.log("state 0: awaiting input");
@@ -34,49 +34,37 @@ addTrack();
 
 
 function playTrack(tr,when=0,_offset=0){
-    if (tr.node){
-        tr.node.stop();
-        tr.node.disconnect();
-    }
-    let time = now();
-    tr.node = tr.connectWith(audioContext);
-    tr.node.loop=true;
-    if (now()<=when)
-        tr.node.start(when,_offset);
-    else{
-        tr.node.start(0,_offset+(now()-when));
+    if (tr.buffer){
+        tr.stop();
+
+        tr.node = tr.connectWith(audioContext);
+        tr.node.loop=true;
+        if (now()<=when)
+            tr.node.start(when,_offset);
+        else
+            tr.node.start(0,_offset+(now()-when));
     }
 }
 
+
 async function fileHandler(file){
     let uncut = await audioContext.decodeAudioData(file);
-    console.log(uncut.duration);
-    let newbuffer =audioContext.createBuffer(
-        uncut.numberOfChannels,
-        speed*uncut.numberOfChannels*uncut.sampleRate,
-        uncut.sampleRate
-    );
-    let data = new Float32Array(speed*uncut.numberOfChannels*uncut.sampleRate);
-    for (let a =0;a<uncut.numberOfChannels;a++){
-        uncut.copyFromChannel(data,a);
-        newbuffer.copyToChannel(data,a);
-    }
 
-    let tr = tracks[recordingTrack];
-    let oldBuffer = tr.buffer;
+    let newbuffer = await cutBufferToSize(uncut,recordingTrackLength);
+    
+    let oldBuffer = recordingTrack.buffer;
     if (oldBuffer){
         newbuffer = await mergeBuffers(newbuffer,oldBuffer);
-        tr.archive.push(oldBuffer);
+        recordingTrack.archive.push(oldBuffer);
     }
-    tr.buffer = newbuffer;
+    recordingTrack.buffer = newbuffer;
 
-    tr.lastplayed = now();
-
-    console.log("Ready to loop at",(now()-timestart)%speed/speed);
-    if((now()-timestart)%speed/speed<0.1)
-        playTrack(tr,now(),(now()-timestart)%speed);
+    let dtime = now()-timestart;
+    console.log("Ready to loop at",dtime%recordingTrackLength/recordingTrackLength);
+    if(dtime%recordingTrackLength/recordingTrackLength<0.1)
+        playTrack(recordingTrack,now(),dtime%recordingTrackLength);
     else
-        playTrack(tr,Math.ceil((now()-timestart)/speed)*speed+now())    
+        playTrack(recordingTrack,timestart+Math.floor(dtime/recordingTrackLength)*recordingTrackLength)    
 }
 
 window.addEventListener("keydown",e=>{
@@ -115,9 +103,11 @@ function record(event){
         console.log("Already Recording");
         return;
     }
-    recordingTrack = event.target.getAttribute("data-track");
+    recordingTrackIndex = event.target.getAttribute("data-track");
+    recordingTrack = tracks[recordingTrackIndex];
+    recordingTrackLength = recordingTrack.phrases*phraselength;
     state = 1;
-    console.log("state 1: Queued recording at track",recordingTrack);
+    console.log("state 1: Queued recording at track",recordingTrackIndex);
     timebuffer = now();
 }
 function dragOver(event){
@@ -130,36 +120,29 @@ function loadFile(event){
         return;
     }
     let file = event.dataTransfer.items[0].getAsFile();
-    recordingTrack = event.target.getAttribute("data-track");
+    recordingTrackIndex = event.target.getAttribute("data-track");
     console.log(file);
     fileReader.readAsArrayBuffer(file);
 }
 
 function deleteBuffer(event){
-    recordingTrack = event.target.getAttribute("data-track");
-    let tr = tracks[recordingTrack];
+    recordingTrackIndex = event.target.getAttribute("data-track");
+    let tr = tracks[recordingTrackIndex];
     tr.undoBuffer();
-    playTrack(tr,now(),(now()-timestart)%speed)
+    playTrack(tr,now(),(now()-timestart)%(tr.phrases*phraselength))
 }
 
 function stop(){
-    for (let t of tracks){
-        t.stop();
-    }
+    tracks.forEach(t=>t.stop());
     audioContext.suspend();
 }
 async function start(){
     await audioContext.resume();
-    phrases = $("phrases").value;
     subbeats = $("subbeats").value;
-    speed = phrases*subbeats/$("bpm").value*60;
+    phraselength = subbeats/$("bpm").value*60;
     
     timestart = audioContext.currentTime;
-    for (let tr of tracks){
-        if (tr.buffer){
-            playTrack(tr,now());
-        }
-    }
+    tracks.forEach(t=>playTrack(t,now()));
     console.log("metronome started at", timestart);
 }
 
@@ -167,42 +150,13 @@ function beep(frequency){
     if ($("metronomeMuted").checked)return;
     osc.frequency.value = frequency;
     metronomeGain.gain.value = metronomeVolume;
-    metronomeGain.gain.setValueAtTime(0,now()+.05); 
+    metronomeGain.gain.linearRampToValueAtTime(0,now()+.05); 
 }
-
-
-async function mergeAllTracks(){
-
-    // let largest= tracks[0].buffer.length;
-    let largest= 0;
-    for (let a=0;a<tracks.length;a++){
-        if (tracks[a].buffer){
-            largest = Math.max(largest,tracks[a].buffer.length);
-        }
-    }
-    if (largest == 0){
-        throw "Nothing to Export";
-    }
-    let offcontext = new OfflineAudioContext(
-        tracks[0].buffer.numberOfChannels,
-        largest,
-        tracks[0].buffer.sampleRate
-    );
-    for (let a=0;a<tracks.length;a++){
-        let node = tracks[a].connectWith(offcontext);
-        node.start();
-    }
-    return await offcontext.startRendering();
-}
-
 
 
 fileReader.addEventListener("load",async ()=>{
     return await fileHandler(fileReader.result);
 })
-
-
-
 
 async function exportAll(){
     try{
@@ -215,50 +169,47 @@ async function exportAll(){
 }
 
 requestAnimationFrame(function redraw(){
+    requestAnimationFrame(redraw);
+    if(!timestart)return;
+
+
     ///tracks
-    for(var tr of tracks){
-        tr.g.clearRect(0,0,1920,200);
+    for(let tr of tracks){
+        tr.g.clearRect(0,0,tr.canvas.width,tr.canvas.height);
         if (tr.buffer){
             tr.g.drawImage(tr.buffercanvas,0,0);
         }
-        let progress =(now()-timestart)%speed/speed
-        tr.g.fillRect(progress*1920,0,1,200);
-
-        // if (state != 2 || !$("muteWhenRecording").checked){
-        //     if (Math.floor((tr.lastplayed-timestart)/speed)<Math.floor((now()-timestart)/speed)){
-        //         if (!tr.looping){
-        //             tr.playTrack();
-        //             tr.lastplayed = now();
-        //         }
-        //     }
-        // }
+        let tracklength=tr.phrases*phraselength;
+        let progress =(now()-timestart)%tracklength/tracklength;
+        tr.g.fillRect(progress*tr.canvas.width,0,1,tr.canvas.height);
     }
     ///recording
     switch(state){
-        case 1:
-            if (Math.floor((timebuffer-timestart)/speed)<Math.floor((now()-timestart)/speed)){
-                state = 2;
-                console.log("state 2: Recording...");
-                setTimeout(()=>mediaRecorder.start(),offset)
-                timebuffer = now();
-            }
-            break;
-        case 2:
-            if (Math.floor((timebuffer-timestart)/speed)<Math.floor((now()-timestart)/speed)){
-                setTimeout(()=>mediaRecorder.stop(),offset+150);
-                state = 0;
-                console.log("state 0: Finished recording...")
-            }
-            break;
+    case 1:
+        if (isNaN(recordingTrackLength))
+            recordingTrackLength=recordingTrack.phrases*phraselength;
+        if (Math.floor((timebuffer-timestart)/recordingTrackLength)<Math.floor((now()-timestart)/recordingTrackLength)){
+            state = 2;
+            console.log("state 2: Recording...");
+            setTimeout(()=>mediaRecorder.start(),offset)
+            timebuffer = now();
+        }
+        break;
+    case 2:
+        if (Math.floor((timebuffer-timestart)/recordingTrackLength)<Math.floor((now()-timestart)/recordingTrackLength)){
+            setTimeout(()=>mediaRecorder.stop(),offset+150);
+            state = 0;
+            console.log("state 0: Finished recording...")
+        }
+        break;
     }
     ///metronome
-    if (Math.floor((prevtime-timestart)/(speed/subbeats/phrases))<Math.floor((now()-timestart)/(speed/subbeats/phrases)))
-        if (Math.floor((prevtime-timestart)/(speed/phrases))<Math.floor((now()-timestart)/(speed/phrases)))
+    if (Math.floor((prevtime-timestart)/(phraselength/subbeats))<Math.floor((now()-timestart)/(phraselength/subbeats)))
+        if (Math.floor((prevtime-timestart)/phraselength)<Math.floor((now()-timestart)/phraselength))
             beep(880);
         else
             beep(440);
     
     prevtime=now();
 
-    requestAnimationFrame(redraw);
 })
