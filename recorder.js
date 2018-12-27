@@ -88,7 +88,14 @@ function addTrack(buffer){
 }
 
 
-navigator.mediaDevices.getUserMedia({video:false,audio:true})
+navigator.mediaDevices.getUserMedia({
+    video:false,
+    audio:{
+        // autoGainControl:true,
+        // echoCancellation:true,
+        latency:{exact:offset}    
+    }
+    })
     .then(_stream=>{
         stream = _stream;
         mediaRecorder = new MediaRecorder(stream);
