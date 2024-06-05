@@ -14,7 +14,7 @@ let subbeats,phraselength;
 let lastclick;
 let offset = 100;
 
-let metronomeVolume = 0.2;
+let metronomeVolume = 0.05;
 
 let muteWhenRecording = false;
 let recordingTrackIndex,recordingTrack,recordingTrackLength;
@@ -48,6 +48,9 @@ function playTrack(tr,when=0,_offset=0){
 
 
 async function fileHandler(file){
+    if(!file){
+        console.trace('noo! file undefined!');
+    }
     let uncut = await audioContext.decodeAudioData(file);
 
     let newbuffer = await cutBufferToSize(uncut,recordingTrackLength);
@@ -91,9 +94,10 @@ function addTrack(buffer){
 navigator.mediaDevices.getUserMedia({
     video:false,
     audio:{
-        // autoGainControl:true,
-        // echoCancellation:true,
-        latency:{exact:offset}    
+        autoGainControl:false,
+        echoCancellation:false,
+        noiseSuppression: true
+        // latency:{exact:100}    
     }
     })
     .then(_stream=>{
@@ -188,6 +192,7 @@ requestAnimationFrame(function redraw(){
         }
         let tracklength=tr.phrases*phraselength;
         let progress =(now()-timestart)%tracklength/tracklength;
+        tr.g.fillStyle="white";
         tr.g.fillRect(progress*tr.canvas.width,0,1,tr.canvas.height);
     }
     ///recording

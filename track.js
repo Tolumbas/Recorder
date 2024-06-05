@@ -135,6 +135,7 @@ repaintBuffer(){
 
     this.bufferg.clearRect(0,0,width,height);
     this.bufferg.beginPath();
+    this.bufferg.strokeStyle='white';
     this.bufferg.moveTo(0,100);
     let array = this.buffer.getChannelData(0);
     let step = Math.floor(array.length/width);

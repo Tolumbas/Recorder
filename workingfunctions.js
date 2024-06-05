@@ -44,12 +44,12 @@ function bufferToLink(buffer,link){
 function cutBufferToSize(uncut,tracklength){
     let newbuffer =audioContext.createBuffer(
         uncut.numberOfChannels,
-        tracklength*uncut.numberOfChannels*uncut.sampleRate,
+        tracklength*uncut.sampleRate,
         uncut.sampleRate
     );
     let tail = audioContext.createBuffer(
         uncut.numberOfChannels,
-        uncut.length-newbuffer.length,
+        Math.max(uncut.length-newbuffer.length,1),
         uncut.sampleRate
     )
     let data = new Float32Array(uncut.length);
@@ -63,10 +63,13 @@ function cutBufferToSize(uncut,tracklength){
         newbuffer.length,
         newbuffer.sampleRate
     );
+
     let mainnode = c.createBufferSource();
     mainnode.buffer=newbuffer;
+
     let tailnode = c.createBufferSource();
     tailnode.buffer=tail;
+
     let fadeoutgain = c.createGain();
     let maingain = c.createGain();
     maingain.gain.value = 0.01;
